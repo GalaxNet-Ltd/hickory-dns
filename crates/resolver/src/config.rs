@@ -323,6 +323,9 @@ pub struct NameServerConfig {
     pub trust_negative_responses: bool,
     /// The client address (IP and port) to use for connecting to the server.
     pub bind_addr: Option<SocketAddr>,
+
+    // GLX_AMOD:
+    pub bind_if_index: Option<u32>,
 }
 
 impl NameServerConfig {
@@ -335,6 +338,8 @@ impl NameServerConfig {
             tls_dns_name: None,
             http_endpoint: None,
             bind_addr: None,
+            // GLX_AMOD:
+            bind_if_index: None,
         }
     }
 }
@@ -412,6 +417,8 @@ impl NameServerConfigGroup {
                 http_endpoint: None,
                 trust_negative_responses,
                 bind_addr: None,
+                // GLX_AMOD:
+                bind_if_index: None,
             };
             let tcp = NameServerConfig {
                 socket_addr,
@@ -420,6 +427,8 @@ impl NameServerConfigGroup {
                 http_endpoint: None,
                 trust_negative_responses,
                 bind_addr: None,
+                // GLX_AMOD:
+                bind_if_index: None,
             };
 
             name_servers.push(udp);

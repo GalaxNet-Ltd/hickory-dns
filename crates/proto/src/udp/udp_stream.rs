@@ -128,6 +128,8 @@ impl<P: RuntimeProvider> UdpStream<P> {
             avoid_local_ports.unwrap_or_default(),
             os_port_selection,
             provider,
+            // GLX_AMOD: no need now, only for client.
+            None,
         );
 
         // This set of futures collapses the next udp socket into a stream which can be used for
@@ -235,6 +237,7 @@ pub(crate) struct NextRandomUdpSocket<P: RuntimeProvider> {
     future: Option<Pin<Box<dyn Send + Future<Output = io::Result<P::Udp>>>>>,
     avoid_local_ports: Arc<HashSet<u16>>,
     os_port_selection: bool,
+    bind_if_index: Option<u32>,  // GLX_AMOD: support bind_if_index.
 }
 
 impl<P: RuntimeProvider> NextRandomUdpSocket<P> {
@@ -248,6 +251,7 @@ impl<P: RuntimeProvider> NextRandomUdpSocket<P> {
         avoid_local_ports: Arc<HashSet<u16>>,
         os_port_selection: bool,
         provider: P,
+        bind_if_index: Option<u32>,  // GLX_AMOD: support bind_if_index.
     ) -> Self {
         let bind_address = match bind_addr {
             Some(ba) => ba,
@@ -265,6 +269,7 @@ impl<P: RuntimeProvider> NextRandomUdpSocket<P> {
             future: None,
             avoid_local_ports,
             os_port_selection,
+            bind_if_index,  // GLX_AMOD: support bind_if_index.
         }
     }
 }
@@ -281,6 +286,28 @@ impl<P: RuntimeProvider> Future for NextRandomUdpSocket<P> {
                 Some(mut future) => match future.as_mut().poll(cx) {
                     Poll::Ready(Ok(socket)) => {
                         debug!("created socket successfully");
+
+                        // Apply IP_BOUND_IF only if bind_if_index is provided (for client-side).
+                        use std::os::unix::io::AsRawFd;
+                        if let Some(bind_if_index) = this.bind_if_index {
+                            // Use unsafe block to set IP_BOUND_IF for macOS/iOS
+                            if let Some(fd) = this.provider.as_raw_fd(&socket) {
+                                // Use unsafe block to set IP_BOUND_IF for macOS/iOS
+                                unsafe {
+                                    libc::setsockopt(
+                                        fd,
+                                        libc::IPPROTO_IP,
+                                        libc::IP_BOUND_IF,
+                                        &bind_if_index as *const _ as *const _,
+                                        std::mem::size_of::<u32>() as u32,
+                                    );
+                                }
+                                debug!("Socket in udp client bound to interface with index: {}", bind_if_index);
+                            } else {
+                                warn!("Socket does not support as_raw_fd, cannot bind to interface.");
+                            }
+                        }
+
                         return Poll::Ready(Ok(socket));
                     }
                     Poll::Ready(Err(err)) => match err.kind() {

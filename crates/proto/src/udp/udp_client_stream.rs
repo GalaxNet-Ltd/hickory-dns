@@ -37,6 +37,7 @@ pub struct UdpClientStreamBuilder<P> {
     avoid_local_ports: Arc<HashSet<u16>>,
     os_port_selection: bool,
     provider: P,
+    bind_if_index: Option<u32>,  // GLX_AMOD: support bind_if_index.
 }
 
 impl<P> UdpClientStreamBuilder<P> {
@@ -56,6 +57,8 @@ impl<P> UdpClientStreamBuilder<P> {
             avoid_local_ports: self.avoid_local_ports,
             os_port_selection: self.os_port_selection,
             provider: self.provider,
+            // GLX_AMOD:
+            bind_if_index: self.bind_if_index,
         }
     }
 
@@ -65,6 +68,12 @@ impl<P> UdpClientStreamBuilder<P> {
     /// attacks. If the port number is nonzero, it will be used instead.
     pub fn with_bind_addr(mut self, bind_addr: Option<SocketAddr>) -> Self {
         self.bind_addr = bind_addr;
+        self
+    }
+
+    // GLX_AMOD:
+    pub fn with_bind_if_index(mut self, bind_if_index: Option<u32>) -> Self {
+        self.bind_if_index = bind_if_index;
         self
     }
 
@@ -93,6 +102,8 @@ impl<P> UdpClientStreamBuilder<P> {
             avoid_local_ports: self.avoid_local_ports.clone(),
             os_port_selection: self.os_port_selection,
             provider: self.provider,
+            // GLX_AMOD:
+            bind_if_index: self.bind_if_index,
         }
     }
 }
@@ -112,6 +123,7 @@ pub struct UdpClientStream<P> {
     avoid_local_ports: Arc<HashSet<u16>>,
     os_port_selection: bool,
     provider: P,
+    bind_if_index: Option<u32>,  // GLX_AMOD: support bind_if_index.
 }
 
 impl<P: RuntimeProvider> UdpClientStream<P> {
@@ -125,6 +137,7 @@ impl<P: RuntimeProvider> UdpClientStream<P> {
             avoid_local_ports: Arc::default(),
             os_port_selection: false,
             provider,
+            bind_if_index: None,  // GLX_AMOD: support bind_if_index.
         }
     }
 }
@@ -197,6 +210,8 @@ impl<P: RuntimeProvider> DnsRequestSender for UdpClientStream<P> {
         let bind_addr = self.bind_addr;
         let avoid_local_ports = self.avoid_local_ports.clone();
         let os_port_selection = self.os_port_selection;
+        // GLX_AMOD:
+        let bind_if_index = self.bind_if_index;
 
         P::Timer::timeout::<Pin<Box<dyn Future<Output = Result<DnsResponse, ProtoError>> + Send>>>(
             self.timeout,
@@ -207,6 +222,8 @@ impl<P: RuntimeProvider> DnsRequestSender for UdpClientStream<P> {
                     avoid_local_ports,
                     os_port_selection,
                     provider,
+                    // GLX_AMOD:
+                    bind_if_index,
                 )
                 .await?;
                 send_serial_message_inner(
@@ -256,6 +273,7 @@ pub struct UdpClientConnect<P> {
     avoid_local_ports: Arc<HashSet<u16>>,
     os_port_selection: bool,
     provider: P,
+    bind_if_index: Option<u32>,  // GLX_AMOD: support bind_if_index.
 }
 
 impl<P: RuntimeProvider> Future for UdpClientConnect<P> {
@@ -272,6 +290,8 @@ impl<P: RuntimeProvider> Future for UdpClientConnect<P> {
             avoid_local_ports: self.avoid_local_ports.clone(),
             os_port_selection: self.os_port_selection,
             provider: self.provider.clone(),
+            // GLX_AMOD:
+            bind_if_index: self.bind_if_index,
         }))
     }
 }

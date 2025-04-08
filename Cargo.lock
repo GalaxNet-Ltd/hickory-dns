@@ -825,6 +825,7 @@ dependencies = [
  "idna",
  "ipnet",
  "js-sys",
+ "libc",
  "once_cell",
  "pin-project-lite",
  "pin-utils",

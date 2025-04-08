@@ -126,6 +126,8 @@ tokio-rustls = { workspace = true, optional = true, features = ["early-data"] }
 url = { workspace = true }
 wasm-bindgen-crate = { workspace = true, optional = true }
 webpki-roots = { workspace = true, optional = true }
+# GLX_AMOD: for setsockopt.
+libc = "0.2.147"
 
 [dev-dependencies]
 futures-executor = { workspace = true, default-features = false, features = ["std"] }

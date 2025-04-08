@@ -221,6 +221,8 @@ impl<P: RuntimeProvider> ConnectionProvider for GenericConnector<P> {
                     .with_os_port_selection(options.os_port_selection)
                     .avoid_local_ports(options.avoid_local_udp_ports.clone())
                     .with_bind_addr(config.bind_addr)
+                    // GLX_AMOD:
+                    .with_bind_if_index(config.bind_if_index)
                     .build();
                 let exchange = DnsExchange::connect(stream);
                 ConnectionConnect::Udp(exchange)

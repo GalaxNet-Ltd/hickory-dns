@@ -20,6 +20,9 @@ use crate::error::ProtoError;
 use crate::tcp::DnsTcpStream;
 use crate::udp::DnsUdpSocket;
 
+// GLX_AMOD: add as raw fd.
+use std::os::unix::io::{AsRawFd}; // For the Unix-specific `as_raw_fd`
+
 /// Spawn a background task, if it was present
 #[cfg(any(test, feature = "tokio"))]
 pub fn spawn_bg<F: Future<Output = R> + Send + 'static, R: Send + 'static>(
@@ -207,6 +210,11 @@ mod tokio_runtime {
         fn quic_binder(&self) -> Option<&dyn QuicSocketBinder> {
             Some(&TokioQuicSocketBinder)
         }
+
+        // GLX_AMOD:
+        fn as_raw_fd(&self, socket: &Self::Udp) -> Option<i32> {
+            Some(socket.as_raw_fd())
+        }
     }
 
     /// Reap finished tasks from a `JoinSet`, without awaiting or blocking.
@@ -276,6 +284,9 @@ pub trait RuntimeProvider: Clone + Send + Sync + Unpin + 'static {
     fn quic_binder(&self) -> Option<&dyn QuicSocketBinder> {
         None
     }
+
+    // GLX_AMOD: ad as_raw_fd.
+    fn as_raw_fd(&self, socket: &Self::Udp) -> Option<i32>;
 }
 
 /// Noop trait for when the `quinn` dependency is not available.
