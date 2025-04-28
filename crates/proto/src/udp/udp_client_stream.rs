@@ -38,6 +38,7 @@ pub struct UdpClientStreamBuilder<P> {
     os_port_selection: bool,
     provider: P,
     bind_if_index: Option<u32>,  // GLX_AMOD: support bind_if_index.
+    logger: Option<fn(&str)>,  // GLX_AMOD: support logger.
 }
 
 impl<P> UdpClientStreamBuilder<P> {
@@ -59,6 +60,7 @@ impl<P> UdpClientStreamBuilder<P> {
             provider: self.provider,
             // GLX_AMOD:
             bind_if_index: self.bind_if_index,
+            logger: self.logger
         }
     }
 
@@ -74,6 +76,11 @@ impl<P> UdpClientStreamBuilder<P> {
     // GLX_AMOD:
     pub fn with_bind_if_index(mut self, bind_if_index: Option<u32>) -> Self {
         self.bind_if_index = bind_if_index;
+        self
+    }
+
+    pub fn with_logger(mut self, logger: Option<fn(&str)>) -> Self {
+        self.logger = logger;
         self
     }
 
@@ -104,6 +111,7 @@ impl<P> UdpClientStreamBuilder<P> {
             provider: self.provider,
             // GLX_AMOD:
             bind_if_index: self.bind_if_index,
+            logger: self.logger
         }
     }
 }
@@ -123,7 +131,9 @@ pub struct UdpClientStream<P> {
     avoid_local_ports: Arc<HashSet<u16>>,
     os_port_selection: bool,
     provider: P,
-    bind_if_index: Option<u32>,  // GLX_AMOD: support bind_if_index.
+    // GLX_AMOD: support bind_if_index.
+    bind_if_index: Option<u32>,
+    logger: Option<fn(&str)>,
 }
 
 impl<P: RuntimeProvider> UdpClientStream<P> {
@@ -137,7 +147,9 @@ impl<P: RuntimeProvider> UdpClientStream<P> {
             avoid_local_ports: Arc::default(),
             os_port_selection: false,
             provider,
-            bind_if_index: None,  // GLX_AMOD: support bind_if_index.
+            // GLX_AMOD: support bind_if_index.
+            bind_if_index: None,
+            logger: None,
         }
     }
 }
@@ -212,6 +224,7 @@ impl<P: RuntimeProvider> DnsRequestSender for UdpClientStream<P> {
         let os_port_selection = self.os_port_selection;
         // GLX_AMOD:
         let bind_if_index = self.bind_if_index;
+        let logger = self.logger;
 
         P::Timer::timeout::<Pin<Box<dyn Future<Output = Result<DnsResponse, ProtoError>> + Send>>>(
             self.timeout,
@@ -224,6 +237,7 @@ impl<P: RuntimeProvider> DnsRequestSender for UdpClientStream<P> {
                     provider,
                     // GLX_AMOD:
                     bind_if_index,
+                    logger,
                 )
                 .await?;
                 send_serial_message_inner(
@@ -273,7 +287,9 @@ pub struct UdpClientConnect<P> {
     avoid_local_ports: Arc<HashSet<u16>>,
     os_port_selection: bool,
     provider: P,
-    bind_if_index: Option<u32>,  // GLX_AMOD: support bind_if_index.
+    // GLX_AMOD: support bind_if_index.
+    bind_if_index: Option<u32>,
+    logger: Option<fn(&str)>,
 }
 
 impl<P: RuntimeProvider> Future for UdpClientConnect<P> {
@@ -292,6 +308,7 @@ impl<P: RuntimeProvider> Future for UdpClientConnect<P> {
             provider: self.provider.clone(),
             // GLX_AMOD:
             bind_if_index: self.bind_if_index,
+            logger: self.logger,
         }))
     }
 }

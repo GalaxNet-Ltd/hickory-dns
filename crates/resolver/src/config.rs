@@ -323,9 +323,6 @@ pub struct NameServerConfig {
     pub trust_negative_responses: bool,
     /// The client address (IP and port) to use for connecting to the server.
     pub bind_addr: Option<SocketAddr>,
-
-    // GLX_AMOD:
-    pub bind_if_index: Option<u32>,
 }
 
 impl NameServerConfig {
@@ -338,8 +335,6 @@ impl NameServerConfig {
             tls_dns_name: None,
             http_endpoint: None,
             bind_addr: None,
-            // GLX_AMOD:
-            bind_if_index: None,
         }
     }
 }
@@ -417,8 +412,6 @@ impl NameServerConfigGroup {
                 http_endpoint: None,
                 trust_negative_responses,
                 bind_addr: None,
-                // GLX_AMOD:
-                bind_if_index: None,
             };
             let tcp = NameServerConfig {
                 socket_addr,
@@ -427,8 +420,6 @@ impl NameServerConfigGroup {
                 http_endpoint: None,
                 trust_negative_responses,
                 bind_addr: None,
-                // GLX_AMOD:
-                bind_if_index: None,
             };
 
             name_servers.push(udp);
@@ -868,6 +859,10 @@ pub struct ResolverOpts {
     ///
     /// If this is provided, `validate` will automatically be set to `true`, enabling DNSSEC validation.
     pub trust_anchor: Option<PathBuf>,
+
+    // GLX_AMOD: 增加监听接口与logger fn.
+    pub bind_if_index: Option<u32>,
+    pub logger: Option<fn(&str)>,
 }
 
 impl Default for ResolverOpts {
@@ -903,6 +898,10 @@ impl Default for ResolverOpts {
             tls_config: client_config(),
             case_randomization: false,
             trust_anchor: None,
+
+            // GLX_AMOD:
+            bind_if_index: None,
+            logger: None,
         }
     }
 }

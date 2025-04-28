@@ -77,8 +77,6 @@ fn into_resolver_config(
             http_endpoint: None,
             trust_negative_responses: false,
             bind_addr: None,
-            // GLX_AMOD:
-            bind_if_index: None,
         });
         nameservers.push(NameServerConfig {
             socket_addr: SocketAddr::new(ip.into(), DEFAULT_PORT),
@@ -87,8 +85,6 @@ fn into_resolver_config(
             http_endpoint: None,
             trust_negative_responses: false,
             bind_addr: None,
-            // GLX_AMOD:
-            bind_if_index: None,
         });
     }
     if nameservers.is_empty() {

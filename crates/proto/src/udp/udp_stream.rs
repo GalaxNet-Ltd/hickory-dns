@@ -130,6 +130,7 @@ impl<P: RuntimeProvider> UdpStream<P> {
             provider,
             // GLX_AMOD: no need now, only for client.
             None,
+            None,
         );
 
         // This set of futures collapses the next udp socket into a stream which can be used for
@@ -237,7 +238,9 @@ pub(crate) struct NextRandomUdpSocket<P: RuntimeProvider> {
     future: Option<Pin<Box<dyn Send + Future<Output = io::Result<P::Udp>>>>>,
     avoid_local_ports: Arc<HashSet<u16>>,
     os_port_selection: bool,
-    bind_if_index: Option<u32>,  // GLX_AMOD: support bind_if_index.
+    // GLX_AMOD: support bind_if_index.
+    bind_if_index: Option<u32>,
+    logger: Option<fn(&str)>,
 }
 
 impl<P: RuntimeProvider> NextRandomUdpSocket<P> {
@@ -251,7 +254,9 @@ impl<P: RuntimeProvider> NextRandomUdpSocket<P> {
         avoid_local_ports: Arc<HashSet<u16>>,
         os_port_selection: bool,
         provider: P,
-        bind_if_index: Option<u32>,  // GLX_AMOD: support bind_if_index.
+        // GLX_AMOD: support bind_if_index.
+        bind_if_index: Option<u32>,
+        logger: Option<fn(&str)>,
     ) -> Self {
         let bind_address = match bind_addr {
             Some(ba) => ba,
@@ -269,7 +274,9 @@ impl<P: RuntimeProvider> NextRandomUdpSocket<P> {
             future: None,
             avoid_local_ports,
             os_port_selection,
-            bind_if_index,  // GLX_AMOD: support bind_if_index.
+            // GLX_AMOD: support bind_if_index.
+            bind_if_index,
+            logger,
         }
     }
 }
@@ -302,9 +309,13 @@ impl<P: RuntimeProvider> Future for NextRandomUdpSocket<P> {
                                         std::mem::size_of::<u32>() as u32,
                                     );
                                 }
-                                debug!("Socket in udp client bound to interface with index: {}", bind_if_index);
+                                if let Some(logger) = &this.logger {
+                                    (logger)(&format!("Socket in udp client bound to interface with index: {}", bind_if_index));
+                                }
                             } else {
-                                warn!("Socket does not support as_raw_fd, cannot bind to interface.");
+                                if let Some(logger) = &this.logger {
+                                    (logger)(&format!("Socket does not support as_raw_fd, cannot bind to interface"));
+                                }
                             }
                         }
 
