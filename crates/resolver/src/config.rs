@@ -863,6 +863,7 @@ pub struct ResolverOpts {
     // GLX_AMOD: 增加监听接口与logger fn.
     pub bind_if_index: Option<u32>,
     pub logger: Option<fn(&str)>,
+    pub prefer_tcp_first: bool,
 }
 
 impl Default for ResolverOpts {
@@ -902,6 +903,7 @@ impl Default for ResolverOpts {
             // GLX_AMOD:
             bind_if_index: None,
             logger: None,
+            prefer_tcp_first: false,
         }
     }
 }

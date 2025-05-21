@@ -234,6 +234,9 @@ impl<P: RuntimeProvider> ConnectionProvider for GenericConnector<P> {
                     config.bind_addr,
                     Some(options.timeout),
                     self.runtime_provider.clone(),
+                    // GLX_AMOD: why tcp such special???
+                    options.bind_if_index,
+                    options.logger,
                 );
 
                 // TODO: need config for Signer...

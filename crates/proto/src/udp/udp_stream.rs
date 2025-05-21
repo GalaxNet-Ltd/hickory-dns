@@ -295,7 +295,6 @@ impl<P: RuntimeProvider> Future for NextRandomUdpSocket<P> {
                         debug!("created socket successfully");
 
                         // Apply IP_BOUND_IF only if bind_if_index is provided (for client-side).
-                        use std::os::unix::io::AsRawFd;
                         if let Some(bind_if_index) = this.bind_if_index {
                             // Use unsafe block to set IP_BOUND_IF for macOS/iOS
                             if let Some(fd) = this.provider.as_raw_fd(&socket) {

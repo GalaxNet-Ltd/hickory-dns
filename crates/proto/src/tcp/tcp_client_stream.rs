@@ -45,6 +45,8 @@ impl<S: DnsTcpStream> TcpClientStream<S> {
         bind_addr: Option<SocketAddr>,
         timeout: Option<Duration>,
         provider: P,
+        bind_if_index: Option<u32>,  // GLX_AMOD: support bind_if_index.
+        logger: Option<fn(&str)>,  // GLX_AMOD: support logger.
     ) -> (
         Pin<Box<dyn Future<Output = Result<Self, ProtoError>> + Send + 'static>>,
         BufDnsStreamHandle,
@@ -52,7 +54,8 @@ impl<S: DnsTcpStream> TcpClientStream<S> {
         let (sender, outbound_messages) = BufDnsStreamHandle::new(peer_addr);
         (
             Box::pin(async move {
-                let tcp = provider.connect_tcp(peer_addr, bind_addr, timeout).await?;
+                // GLX_AMOD:
+                let tcp = provider.connect_tcp(peer_addr, bind_addr, timeout, bind_if_index, logger).await?;
                 Ok(Self::from_stream(TcpStream::from_stream_with_receiver(
                     tcp,
                     peer_addr,

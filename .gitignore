@@ -28,3 +28,4 @@ fuzz/corpus/**
 
 # Code coverage output
 /coverage
+.aider*

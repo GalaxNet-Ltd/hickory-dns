@@ -173,6 +173,9 @@ mod tokio_runtime {
             server_addr: SocketAddr,
             bind_addr: Option<SocketAddr>,
             wait_for: Option<Duration>,
+            // GLX_AMOD:
+            bind_if_index: Option<u32>,  // GLX_AMOD: support bind_if_index.
+            logger: Option<fn(&str)>,  // GLX_AMOD: support logger.
         ) -> Pin<Box<dyn Send + Future<Output = io::Result<Self::Tcp>>>> {
             Box::pin(async move {
                 let socket = match server_addr {
@@ -182,6 +185,25 @@ mod tokio_runtime {
 
                 if let Some(bind_addr) = bind_addr {
                     socket.bind(bind_addr)?;
+                }
+
+                // Apply IP_BOUND_IF only if bind_if_index is provided (for client-side).
+                if let Some(bind_if_index) = bind_if_index {
+                    // Use unsafe block to set IP_BOUND_IF for macOS/iOS
+                    let fd = socket.as_raw_fd();
+                    // Use unsafe block to set IP_BOUND_IF for macOS/iOS
+                    unsafe {
+                        libc::setsockopt(
+                            fd,
+                            libc::IPPROTO_IP,
+                            libc::IP_BOUND_IF,
+                            &bind_if_index as *const _ as *const _,
+                            std::mem::size_of::<u32>() as u32,
+                        );
+                    }
+                    if let Some(logger) = &logger {
+                        (logger)(&format!("Socket in tcp client bound to interface with index: {}", bind_if_index));
+                    }
                 }
 
                 socket.set_nodelay(true)?;
@@ -215,6 +237,7 @@ mod tokio_runtime {
         fn as_raw_fd(&self, socket: &Self::Udp) -> Option<i32> {
             Some(socket.as_raw_fd())
         }
+
     }
 
     /// Reap finished tasks from a `JoinSet`, without awaiting or blocking.
@@ -267,6 +290,9 @@ pub trait RuntimeProvider: Clone + Send + Sync + Unpin + 'static {
         server_addr: SocketAddr,
         bind_addr: Option<SocketAddr>,
         timeout: Option<Duration>,
+        // GLX_AMOD:
+        bind_if_index: Option<u32>,  // GLX_AMOD: support bind_if_index.
+        logger: Option<fn(&str)>,  // GLX_AMOD: support logger.
     ) -> Pin<Box<dyn Send + Future<Output = io::Result<Self::Tcp>>>>;
 
     /// Create a UDP socket bound to `local_addr`. The returned value should **not** be connected to `server_addr`.

@@ -207,32 +207,60 @@ where
         Box::pin(once(async move {
             debug!("sending request: {:?}", request.queries());
 
-            // First try the UDP connections
-            let future = Self::try_send(opts.clone(), datagram_conns, request, &datagram_index);
-            let udp_res = match future.await {
-                Ok(response) if response.truncated() => {
-                    debug!("truncated response received, retrying over TCP");
-                    Err(ProtoError::from("received truncated response"))
+            // GLX_AMOD: 优先tcp查询.
+            if opts.prefer_tcp_first {
+                // 没有tcp server?
+                if stream_conns.is_empty() {
+                    debug!("no TCP connections available, direct using udp.");
+                    Self::try_send(opts.clone(), datagram_conns, request, &datagram_index).await
+                } else {
+                    // First try the TCP connections
+                    let future = Self::try_send(opts.clone(), stream_conns, request, &stream_index);
+                    let tcp_res = match future.await {
+                        Err(e) =>
+                        {
+                            debug!("error from TCP, fallback over UDP: {}", e);
+                            Err(e)
+                        }
+                        result => return result,
+                    };
+
+                    if datagram_conns.is_empty() {
+                        debug!("no datagram connections available");
+                        return tcp_res;
+                    }
+
+                    // fallback to UDP.
+                    Self::try_send(opts, datagram_conns, tcp_message, &datagram_index).await
                 }
-                Err(e)
-                    if (opts.try_tcp_on_error && e.is_io())
+            } else {
+                // First try the UDP connections
+                let future = Self::try_send(opts.clone(), datagram_conns, request, &datagram_index);
+                let udp_res = match future.await {
+                    Ok(response) if response.truncated() => {
+                        debug!("truncated response received, retrying over TCP");
+                        Err(ProtoError::from("received truncated response"))
+                    }
+                    Err(e)
+                        if (opts.try_tcp_on_error && e.is_io())
                         || e.is_no_connections()
                         || matches!(&*e.kind, ProtoErrorKind::QueryCaseMismatch) =>
-                {
-                    debug!("error from UDP, retrying over TCP: {}", e);
-                    Err(e)
+                    {
+                        debug!("error from UDP, retrying over TCP: {}", e);
+                        Err(e)
+                    }
+                    result => return result,
+                };
+
+                if stream_conns.is_empty() {
+                    debug!("no TCP connections available");
+                    return udp_res;
                 }
-                result => return result,
-            };
 
-            if stream_conns.is_empty() {
-                debug!("no TCP connections available");
-                return udp_res;
+                // Try query over TCP, as response to query over UDP was either truncated or was an
+                // error.
+                Self::try_send(opts, stream_conns, tcp_message, &stream_index).await
             }
-
-            // Try query over TCP, as response to query over UDP was either truncated or was an
-            // error.
-            Self::try_send(opts, stream_conns, tcp_message, &stream_index).await
         }))
     }
 }
