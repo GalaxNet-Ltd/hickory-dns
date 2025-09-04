@@ -864,6 +864,7 @@ pub struct ResolverOpts {
     pub bind_if_index: Option<u32>,
     pub logger: Option<fn(&str)>,
     pub prefer_tcp_first: bool,
+    pub intertransport_concurrent_resolve: bool,
 }
 
 impl Default for ResolverOpts {
@@ -904,6 +905,7 @@ impl Default for ResolverOpts {
             bind_if_index: None,
             logger: None,
             prefer_tcp_first: false,
+            intertransport_concurrent_resolve: false,
         }
     }
 }

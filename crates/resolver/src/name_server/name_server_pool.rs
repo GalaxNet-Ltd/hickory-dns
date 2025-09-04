@@ -173,6 +173,73 @@ where
 
         parallel_conn_loop(conns, request_loop, opts).await
     }
+
+    // GLX_AMOD: support inter transport concurrent lookup.
+    async fn try_concurrent_resolve(
+        opts: ResolverOpts,
+        datagram_conns: Arc<[NameServer<P>]>,
+        stream_conns: Arc<[NameServer<P>]>,
+        udp_request: DnsRequest,
+        tcp_request: DnsRequest,
+        datagram_index: Arc<AtomicUsize>,
+        stream_index: Arc<AtomicUsize>,
+    ) -> Result<DnsResponse, ProtoError> {
+        use tokio::select;
+
+        // Check if we have both connection types
+        let has_udp = !datagram_conns.is_empty();
+        let has_tcp = !stream_conns.is_empty();
+
+        match (has_udp, has_tcp) {
+            (true, true) => {
+                debug!("attempting concurrent UDP and TCP resolution");
+
+                // Race both protocols
+                select! {
+                    udp_result = Self::try_send(opts.clone(), datagram_conns, udp_request, &datagram_index) => {
+                        match udp_result {
+                            Ok(response) if !response.truncated() => {
+                                debug!("UDP resolved first with complete response");
+                                Ok(response)
+                            }
+                            Ok(_) => {
+                                debug!("UDP resolved first but response truncated");
+                                Err(ProtoError::from("UDP response truncated"))
+                            }
+                            Err(e) => {
+                                debug!("UDP resolved first but failed: {}", e);
+                                Err(e)
+                            }
+                        }
+                    }
+                    tcp_result = Self::try_send(opts.clone(), stream_conns, tcp_request, &stream_index) => {
+                        match tcp_result {
+                            Ok(response) => {
+                                debug!("TCP resolved first with response");
+                                Ok(response)
+                            }
+                            Err(e) => {
+                                debug!("TCP resolved first but failed: {}", e);
+                                Err(e)
+                            }
+                        }
+                    }
+                }
+            }
+            (true, false) => {
+                debug!("only UDP connections available for concurrent resolve");
+                Self::try_send(opts, datagram_conns, udp_request, &datagram_index).await
+            }
+            (false, true) => {
+                debug!("only TCP connections available for concurrent resolve");
+                Self::try_send(opts, stream_conns, tcp_request, &stream_index).await
+            }
+            (false, false) => {
+                debug!("no connections available");
+                Err(ProtoError::from("no connections available"))
+            }
+        }
+    }
 }
 
 impl<P> DnsHandle for NameServerPool<P>
@@ -208,7 +275,19 @@ where
             debug!("sending request: {:?}", request.queries());
 
             // GLX_AMOD: 优先tcp查询.
-            if opts.prefer_tcp_first {
+            // 如果支持跨transport并发查询，则执行之。
+            if opts.intertransport_concurrent_resolve {
+                return Self::try_concurrent_resolve(
+                    opts,
+                    datagram_conns,
+                    stream_conns,
+                    request,
+                    tcp_message,
+                    datagram_index,
+                    stream_index
+                ).await;
+            }
+            else if opts.prefer_tcp_first {
                 // 没有tcp server?
                 if stream_conns.is_empty() {
                     debug!("no TCP connections available, direct using udp.");
@@ -264,6 +343,7 @@ where
         }))
     }
 }
+
 
 // TODO: we should be able to have a self-referential future here with Pin and not require cloned conns
 /// An async function that will loop over all the conns with a max parallel request count of ops.num_concurrent_req
